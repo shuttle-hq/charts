@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "parallax.fullname" . }}
+  annotations:
+    checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+  labels:
+    app: {{ include "parallax.name" . }}
+    chart: {{ include "parallax.chart" . }}
+    release: {{ .Release.Name }}
+    component: worker
+spec:
+  serviceName: {{ include "parallax.fullname" . }}
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ include "parallax.name" . }}
+      release: {{ .Release.Name }}
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: {{ include "parallax.name" . }}
+        release: {{ .Release.Name }}
+        component: worker
+    spec:
+      affinity:
+        podAntiAffinity:
+        {{- if eq .Values.antiAffinity "hard" }}
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - topologyKey: "kubernetes.io/hostname"
+            labelSelector:
+              matchLabels:
+                app:  {{ include "parallax.name" . }}
+                release: {{ .Release.Name | quote }}
+                component: worker
+        {{- else if eq .Values.antiAffinity "soft" }}
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchLabels:
+                  app:  {{ include "parallax.name" . }}
+                  release: {{ .Release.Name | quote }}
+                  component: worker
+        {{- end }}
+      terminationGracePeriodSeconds: 0
+      containers:
+      - name: parallax
+        image: "{{ .Values.image.registry }}/{{ .Values.image.image }}:minimal-{{ .Values.image.commitSha }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
+        command: parallax-worker {{ include "parallax.flags" . }}
+        ports:
+        - containerPort: {{ .Values.rpcPort }}
+          name: rpc
+        {{- if .Values.bootstrap.enabled }}
+        - containerPort: {{ .Values.bootstrapPort }}
+          name: bootstrap
+        {{- end }}
+        - containerPort: {{ .Values.probePort }}
+          name: probe
+        env:
+        - name: RUST_LOG
+          value: {{ .Values.rust.log | quote }}
+        - name: RUST_BACKTRACE
+          value: {{ .Values.rust.backtrace | quote }}
+        - name: REDIS_HOST
+          value: {{ .Values.redis.host | quote }}
+        - name: REDIS_PORT
+          value: {{ .Values.redis.port | quote }}
+        - name: REDIS_PASS
+          value: "/opt/secret/redis.pass"
+        - name: BOOTSTRAP_PORT
+          value: {{ .Values.bootstrapPort | quote }}
+        - name: RPC_PORT
+          value: {{ .Values.rpcPort | quote }}
+        - name: PROBE_PORT
+          value: {{ .Values.probePort | quote }}
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+        {{- if .Values.probes.enabled }}
+        readinessProbe:
+          httpGet:
+            path: /probe/status
+            port: {{ .Values.probePort }}
+          initialDelaySeconds: 5
+          timeoutSeconds: 2
+        livenessProbe:
+          httpGet:
+            path: /probe/status
+            port: {{ .Values.probePort }}
+          initialDelaySeconds: 10
+          timeoutSeconds: 2
+        {{- end }}
+        volumeMounts:
+        - name: secret
+          mountPath: /opt/secret
+        {{- if .Values.custom.secret.name }}
+        - name: custom-secret
+          mountPath: {{ .Values.custom.secret.path }}
+        {{- end }}
+        {{- if .Values.custom.config }}
+        - name: custom-config
+          mountPath: /opt/custom/config
+        {{- end }}
+      volumes:
+      {{- if .Values.custom.secret.name }}
+      - name: custom-secret
+        secret:
+          secretName: {{ .Values.custom.secret.name }}
+      {{- end }}
+      {{- if .Values.custom.config }}
+      - name: custom-config
+        configMap:
+          name: {{ include "parallax.fullname" . }}-custom
+      {{- end }}
+      - name: secret
+        secret:
+          secretName: {{ include "parallax.fullname" . }}-secret

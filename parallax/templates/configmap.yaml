@@ -1,0 +1,12 @@
+{{- if .Values.custom.config }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "parallax.fullname" . }}-custom
+  labels:
+    app: {{ include "parallax.name" . }}
+    chart: {{ include "parallax.chart" . }}
+    release: {{ .Release.Name }}
+data:
+{{ toYaml .Values.custom.config | indent 2 }}
+{{- end }}

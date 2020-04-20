@@ -1,0 +1,51 @@
+probes:
+  enabled: true
+
+antiAffinity: soft
+
+image:
+  registry: eu.gcr.io/openquery-dev
+  image: parallax
+  commitSha:
+  pullPolicy: IfNotPresent
+
+redis:
+  enabled: true
+  host: redis-master
+  port: 6379
+  password:
+
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "10m"
+  limits:
+    memory: "8192Mi"
+    cpu: "4000m"
+
+rpcPort: 6548
+bootstrapPort: 6599
+probePort: 7331
+
+serviceType: LoadBalancer
+internal: true
+
+rust:
+  log: "TRACE"
+  backtrace: 1
+
+tls:
+  enabled: true
+
+bootstrap:
+  # Whether to enable to bootstrap rpc endpoint
+  # The endpoint allows anyone hitting it to run arbitrary operations
+  # on the state of the Parallax deployment and should only be used to
+  # initialise a new deployment with `parallax init`.
+  enabled: false
+
+custom:
+  secret:
+    name:
+    path: /opt/custom/secret
+  config:

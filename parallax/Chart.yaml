@@ -1,0 +1,20 @@
+apiVersion: v1
+version: 0.1.0
+appVersion: 0.1.0
+description: a scalable privacy-aware data fabric
+name: parallax
+icon: https://openquery.io/assets/parallax-icon.png
+home: https://openquery.io/parallax
+sources:
+- https://github.com/openquery-io/core
+maintainers:
+- name: OpenQuery
+  email: helm@openquery.io
+keywords:
+- privacy
+- dbms
+- sql
+- nosql
+- data
+- database
+- anonymity
