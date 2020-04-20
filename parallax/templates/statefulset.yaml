@@ -50,7 +50,15 @@ spec:
       - name: parallax
         image: "{{ .Values.image.registry }}/{{ .Values.image.image }}:minimal-{{ .Values.image.commitSha }}"
         imagePullPolicy: {{ .Values.image.pullPolicy | quote }}
-        command: parallax-worker {{ include "parallax.flags" . }}
+        command:
+        - parallax-worker
+        args:
+        {{- if not .Values.tls.enabled }}
+        - --disable-tls
+        {{- end }}
+        {{- if .Values.bootstrap.enabled }}
+        - --enable-bootstrap
+        {{- end }}
         ports:
         - containerPort: {{ .Values.rpcPort }}
           name: rpc
